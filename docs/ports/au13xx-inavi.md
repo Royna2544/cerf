@@ -79,8 +79,8 @@ emulator frontend.
 ## Next integration work
 
 1. Implement the Au1300 CP0 model, including PRId, Config banks, masks,
-   TLB geometry and reset behavior. The Linux family ID identifies the
-   implementation but does not establish this unit's stepping.
+   TLB geometry and reset behavior. The follow-up boot log identifies
+   PRId `0x800C8001`; Config0 and Config1 remain unverified.
 2. Supply the CPU clock, TLB and exception strategies, board context, memory
    map and boot arguments. Establish the secondary XIP's actual load path.
 3. Run the original kernel through the Core and implement the first observed
@@ -89,6 +89,10 @@ emulator frontend.
 4. Add the original drivers' storage, display and input paths, reach the shell,
    then exercise the supplied app. LL/SC and other unimplemented ISA paths
    remain an audit item. There is no map database in the supplied app archive.
+
+[Follow-up captured boot evidence](au13xx-inavi-boot-evidence.md) records the
+confirmed CPU identity, 792 MHz clock, NAND geometry, boot arguments and buffer
+reservations. Its probe passes PRId and stops at the next Config0 read.
 
 The two user-supplied behavior sources,
 [WinCE_Emulator2](https://github.com/Royna2544/WinCE_Emulator2) and
