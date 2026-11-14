@@ -24,11 +24,20 @@ Core configuration accepts `mips32r1` as an ISA choice. No existing board is
 switched to this profile. An Au1300 CPU configuration and CP0 implementation
 still need documented register values and reset behavior.
 
+The MIPS32R1 decoder also accepts the integer SPECIAL2 operations `MADD`,
+`MADDU`, `MSUB`, `MSUBU`, `MUL`, `CLZ` and `CLO`. The accumulator operations
+use the 32-bit operands and the concatenated HI/LO words with modular 64-bit
+arithmetic. `MUL` writes the low product word to its destination; its HI/LO
+result remains architecturally unpredictable. Leading-bit counts operate on
+the low word and enforce the manual's matching rt/rd encoding restriction.
+The TX39 destination-register form of multiply-add keeps its separate feature
+flag. Delay-slot classification tracks the new destination-register writes.
+
 ## Validation
 
 Both the standalone Engine and Core libraries build on x86-64 Linux with
 GCC 14.2 in Release mode. Core builds with its own nested Engine checkout;
-both Engine checkouts select the same revision. The nine MIPS tests and the
+both Engine checkouts select the same revision. The ten MIPS tests and the
 Engine API test pass. The differential test now
 includes 3,000 generated MIPS32R1 programs in normal and IR-verification modes,
 in addition to the existing MIPS profiles. These modes share a frontend;
@@ -39,6 +48,14 @@ different upper storage bits, ERET callback dispatch, doubleword rejection,
 CP0 bank reads and writes, rejection of absent banks, rejection of selectors
 on older ISA profiles, and compatibility with hosts using the old interface.
 The Core UTF-16 test also passes. No GUI or peripheral acceptance test has run.
+
+The SPECIAL2 test runs native programs in both IR modes, comparing results
+with host arithmetic and bit-count references. It covers signed and unsigned
+products, carry/borrow and accumulator wraparound, poisoned upper storage bits,
+zero registers, destination/source aliases, every leading-bit position,
+ordinary and likely branch delay slots, malformed encodings, ISA gating and
+the existing TX39 multiply-add behavior. This ISA work does not implement the
+CP0 configuration model needed by the follow-up original-ROM probe.
 
 The public CP0 host fallback is included also when the translator is disabled.
 A Linux configuration with a synthetic unsupported processor name builds the
@@ -78,6 +95,10 @@ emulator frontend.
 
 ## Next integration work
 
+Implementation can continue from the supplied ROM, boot log and architecture
+references. An EBOOT image or further hardware captures would refine the boot
+handoff model and its validation; they are additional evidence for that work.
+
 1. Implement the Au1300 CP0 model, including PRId, Config banks, masks,
    TLB geometry and reset behavior. The follow-up boot log identifies
    PRId `0x800C8001`; Config0 and Config1 remain unverified.
@@ -107,8 +128,9 @@ transplant their Windows CE API replacements into CERF.
   `references/au13xx/linux/arch/mips/include/asm/mach-au1x00/cpu-feature-overrides.h`,
   SHA-256 `b66310f8b8d7afcba6da5ab2918abdc540bea96b7bdb25d865b4b0714f641441`.
 - MIPS Technologies, *MIPS32 Architecture for Programmers, Volume II*,
-  revision 2.62, entries ERET (122), MFC0 (159), MOVN (169), MOVZ (173), MTC0 (178)
-  and PREF (201), printed page numbers.
+  revision 2.62, entries CLO (101), CLZ (102), ERET (122), MADD (156), MADDU (158),
+  MFC0 (159), MOVN (169), MOVZ (173), MSUB (175), MSUBU (177), MTC0 (178),
+  MUL (185) and PREF (201), printed page numbers.
   [Reference copy](https://www.cse.iitb.ac.in/~br/courses/cs305-autumn2011/labs/lab05/MD00086-2B-MIPS32BIS-AFP-02_62.pdf),
   local `references/au13xx/manuals/MIPS32_Vol2_2.62.pdf`, SHA-256
   `ce14f0f2039c51ee08753e55d18d80b01c0c13acd86fa7a6fc317211ec5578e8`.
