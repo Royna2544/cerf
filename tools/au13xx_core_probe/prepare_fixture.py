@@ -16,8 +16,8 @@ def main():
         parser.error('NAND requires a private16-byte .uid sidecar')
     if nand.stat().st_size != 4096 * 32 * 528:
         parser.error('NAND geometry must be4096 blocks of32 pages of512+16 bytes')
-    if sd.stat().st_size != 64 * 1024 * 1024:
-        parser.error('The SD test fixture must be the deterministic64MiB FAT16 image')
+    if sd.stat().st_size not in (64 * 1024 * 1024, 8 * 1024**3):
+        parser.error('Use the64MiB FAT16 test fixture or8GiB full-card FAT32 image')
     config = {
         'board': {'id': 'inavi_gn2010'},
         'rom': {'primary': str(rom)},

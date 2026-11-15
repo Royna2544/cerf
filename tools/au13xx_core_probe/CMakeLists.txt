@@ -9,7 +9,8 @@ set(CERFCORE_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../libCerfCore" core)
 
 foreach(name IN ITEMS au1374_core_host au1374_core_integration_test
-                      au1374_core_display_test au1374_core_sd_test au1374_core_audio_test)
+                      au1374_core_display_test au1374_core_sd_test au1374_core_audio_test
+                      au1374_core_sdhc_test)
     add_executable(${name} "${name}.cpp")
     target_compile_features(${name} PRIVATE cxx_std_20)
     target_compile_options(${name} PRIVATE -Wall -Wextra -Werror)

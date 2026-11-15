@@ -205,6 +205,12 @@ private:
             Check(Read(base + 0x20u) == cerfengine::le::U32(expected.data() + i), "UID restored stream cursor");
         }
         bus_.WriteByte(base, 0xFFu);
+        // NANDUUID.dll C0CA2280 reads16-byte records selected by the row byte.
+        for (uint8_t command : {0x30u, 0x65u, 0u}) bus_.WriteByte(base, command);
+        for (uint8_t address : {0u, 21u, 0u, 0u}) bus_.WriteByte(base + 4u, address);
+        for (uint32_t i = 0u; i < 4u; ++i)
+            Check(Read(base + 0x20u) == 0xFFFFFFFFu, "Uncaptured OTP page must be erased");
+        bus_.WriteByte(base, 0xFFu);
         bus_.WriteByte(base, 0x90u);
         bus_.WriteByte(base + 4u, 0u);
         Check(Read(base + 0x20u) == 0x3F5A76ECu, "UID exit did not restore normal NAND ID mode");
