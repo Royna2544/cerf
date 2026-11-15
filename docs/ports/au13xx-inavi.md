@@ -1,8 +1,57 @@
-# Au13xx iNavi port: CPU foundation and startup experiment
+# Au1374 iNavi GN2010 port
 
-This checkpoint starts support for the MIPS Alchemy CPU used by the supplied
-Windows CE 6 image. It does not register a usable Au13xx board. The original
-OS and iNavi application have not booted in CERF.
+The registered `inavi_gn2010` Core board boots the original Windows CE6 image
+through the800x480 launcher, mounts the supplied INAVI files on SD, accepts
+calibrated touch and starts the original iNavi executable. The current app
+archive lacks `mapinfo.bin`, so iNavi displays its map-version error dialog.
+Acknowledging that dialog returns cleanly to the launcher.
+
+![Original iNavi splash and missing-map dialog](au1374-inavi-splash.png)
+
+The port is experimental.23 hardware, display, SD and audio integration checks
+pass in the native Linux development host. See [Core validation](au13xx-inavi-core-validation.md)
+and the [reproducible host](../../tools/au13xx_core_probe/README.md). Normal Qt
+frontend acceptance and independent Core review remain outstanding.
+
+## Current implementation
+
+- MIPS32R1 CP0 banks, TLB and exception handling, with DMA translation-cache coherence.
+- Au1300-family clocks/counters, GPIC, descriptor DMA and UART debug output.
+- Samsung small-page NAND with volatile writes, reconstructed FAL storage and a private UID sidecar.
+- SD1 controller and SDSC card protocol with a deterministic64MiB FAT16 image.
+- LCD raster timing, indexed palettes, RGB565, pipe priority, alpha and cursor rendering.
+- Calibrated WM97xx-compatible pen input and PSC1 stereo PCM transmission.
+- OHCI/EHCI/DWC2 startup, VSS clock/reset domains and observed ITE startup accesses.
+
+The registered board is under `libCerfCore/src/boards/inavi_gn2010/`; SoC
+models are under `libCerfCore/src/socs/au1300/`. The root and nested Engine
+submodules pin the same revision. `.gitmodules` points to the port forks, so
+`git clone --recurse-submodules` retrieves the implementation.
+
+## Assumptions and remaining validation
+
+Config0/Config1, external board inputs, virtual SD identity and geometry,
+codec identity, battery ADC input and bootloader display handoff retain their
+explicitly provisional status. The LCD handoff is selected from the original
+driver's Samsung800x480 table, with its enabled state inferred. Original NAND
+OOB and physical bad-block placement were not recovered. Guest media writes
+remain volatile.
+
+ITE processing, active USB transfers, DWC2 endpoints, AC97 receive and several
+unreached display formats remain guarded by explicit fatal paths. Sensor and
+video peripherals are incomplete. The validation environment has no ALSA
+playback device; PCM timing and sample delivery were exercised through the
+existing silent pacing backend, without audible verification.
+
+No firmware, application files, device identity bytes or map database are
+committed. The next application input is the original SD/map dataset, starting
+with the missing `mapinfo.bin` file.
+
+## Earlier CPU and Engine-only bring-up
+
+The remaining sections preserve the earlier bring-up record. Statements about
+unimplemented board support or future integration below describe that earlier
+checkpoint; the execution status above is current.
 
 ## Source changes
 
@@ -93,7 +142,7 @@ The startup log is retained with the checkpoint. The temporary probe source
 and executable are removed after the experiment; they are not a supported
 emulator frontend.
 
-## Next integration work
+## Historical next integration work
 
 Implementation can continue from the supplied ROM, boot log and architecture
 references. An EBOOT image or further hardware captures would refine the boot
