@@ -1,0 +1,47 @@
+name: Au1374 Windows portable
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qt-windows:
+    uses: ./.github/workflows/qt-windows.yml
+
+  ce-apps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+      - name: Fetch pinned public auxiliary CE tools
+        run: python3 tools/fetch_public_ce_apps.py ci/ce_apps
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ce-apps
+          path: ci/ce_apps/
+
+  windows:
+    needs: [qt-windows, ce-apps]
+    uses: ./.github/workflows/build-windows.yml
+
+  smoke:
+    name: Check portable Windows executable
+    needs: windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: CERF-*
+          path: portable
+          merge-multiple: true
+      - name: Load the executable and print its CLI help
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem portable -Recurse -Filter cerf.exe
+          if (@($exe).Count -ne 1) { throw 'Expected one portable cerf.exe' }
+          $process = Start-Process -FilePath $exe.FullName -ArgumentList '--help' -PassThru -NoNewWindow -Wait
+          if ($process.ExitCode -ne 0) { throw "cerf.exe --help exited $($process.ExitCode)" }
+          Get-FileHash $exe.FullName -Algorithm SHA256
