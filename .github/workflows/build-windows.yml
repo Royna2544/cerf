@@ -2,6 +2,11 @@ name: build-windows
 
 on:
   workflow_call:
+    inputs:
+      host-only:
+        description: Build without the auxiliary guest CE applications
+        type: boolean
+        default: false
 
 jobs:
   build:
@@ -55,6 +60,7 @@ jobs:
         run: python tools/stamp_version.py --run=${{ github.run_number }} --sha=${{ github.sha }} --host-branch=${{ env.HOST_BRANCH }}
 
       - name: Fetch the CE apps
+        if: ${{ !inputs.host-only }}
         uses: actions/download-artifact@v4
         with:
           name: ce-apps
@@ -71,7 +77,13 @@ jobs:
 
       - name: Build
         shell: pwsh
-        run: python build.py --config Release --mode production --ce-apps-from=ci/ce_apps
+        run: |
+          if ("${{ inputs.host-only }}" -eq "true") {
+            python build.py --config Release --mode production --no-ce-apps
+          } else {
+            python build.py --config Release --mode production --ce-apps-from=ci/ce_apps
+          }
+          exit $LASTEXITCODE
 
       - uses: ./.github/actions/compiler-cache
         if: ${{ !cancelled() }}

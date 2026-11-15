@@ -10,22 +10,11 @@ jobs:
   qt-windows:
     uses: ./.github/workflows/qt-windows.yml
 
-  ce-apps:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: false
-      - name: Fetch pinned public auxiliary CE tools
-        run: python3 tools/fetch_public_ce_apps.py ci/ce_apps
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ce-apps
-          path: ci/ce_apps/
-
   windows:
-    needs: [qt-windows, ce-apps]
+    needs: qt-windows
     uses: ./.github/workflows/build-windows.yml
+    with:
+      host-only: true
 
   smoke:
     name: Check portable Windows executable

@@ -34,7 +34,11 @@ def parse_args(argv):
                         help="copy ce_apps from the ce_apps directory of another build")
     parser.add_argument("--ce-apps-only", action="store_true",
                         help="build only ce_apps, not the frontend")
+    parser.add_argument("--no-ce-apps", action="store_true",
+                        help="build a desktop host without auxiliary guest CE applications")
     args = parser.parse_args(argv)
+    if args.no_ce_apps and (args.ce_apps_only or args.ce_apps_from or args.android):
+        parser.error("--no-ce-apps is a desktop-only alternative to the CE app build/copy options")
     if args.config.lower() in ("d", "debug"):
         args.config = "Debug"
     elif args.config.lower() == "release":
@@ -83,8 +87,9 @@ def run(args, branch, lock) -> int:
         heartbeat()
         if not build_common.check_nested_pins(ROOT, args.mode == "production"):
             return 1
-        build_common.build_ce_apps(ROOT, branch, args.config, args.mode, heartbeat, report,
-                                   args.ce_apps_from)
+        if not args.no_ce_apps:
+            build_common.build_ce_apps(ROOT, branch, args.config, args.mode, heartbeat, report,
+                                       args.ce_apps_from)
         if args.ce_apps_only:
             return summarize(report, started)
         if branch.package_file and report.failed:
