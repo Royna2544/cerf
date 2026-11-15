@@ -64,10 +64,15 @@ frames are pixel-identical. All original input hashes remained unchanged.
 | Guidance and destination visible | 194.12 s | 193.83 s |
 | Clean exit, code 0 | 194.18 s | 193.95 s |
 
+A further Release build with `CERFCORE_DEV_MODE=OFF` and device traces disabled
+also passed: map at122.82 s, search results at143.38 s, route comparison
+at180.05 s, guidance at188.05 s and clean exit at188.17 s. Its final route
+frame is pixel-identical to the development runs, and input hashes are unchanged.
+
 These are host wall times from process creation on the validation machine,
 including full SD base-image identification. Peak private memory during the
-manual run was454 MiB; the8 GiB card is not loaded into RAM. The existing
-CTest suites passed5/5; the two additional SDHC scenarios passed separately.
+manual run was 454 MiB; the 8 GiB card is not loaded into RAM. The existing
+CTest suites passed 5/5; the two additional SDHC scenarios passed separately.
 [Machine-readable results](au1374-functional-results.json) record Core/Engine
 revisions, host binary identity, OCR data identity and rendered-stage evidence.
 

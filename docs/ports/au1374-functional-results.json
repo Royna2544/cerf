@@ -118,5 +118,60 @@
         }
       ]
     }
-  ]
+  ],
+  "production_mode": {
+    "core_commit": "2d1e66fcdb8785e3c53bb87d421711b59f8f8391",
+    "dev_mode": false,
+    "device_traces": false,
+    "host_sha256": "a41a7d6190b694c468e78fff1d0d985b2f269728dc48804339cccf916fa2836b",
+    "inputs_unchanged": true,
+    "stages": [
+      {
+        "stage": "cold-boot",
+        "seconds": 0.05
+      },
+      {
+        "stage": "map",
+        "seconds": 122.82,
+        "panel": [
+          800,
+          480
+        ],
+        "text": "통계\nOFF"
+      },
+      {
+        "stage": "search",
+        "seconds": 130.29,
+        "text": "퀵검색"
+      },
+      {
+        "stage": "search-results",
+        "seconds": 143.38,
+        "query": "서울역",
+        "text": "경로 검색\n『통합검색 > 검색결과(서울역)                                        ："
+      },
+      {
+        "stage": "route-calculated",
+        "seconds": 180.05,
+        "view": "comparison",
+        "distance_km": 35.5,
+        "route_red_pixels": 10277,
+        "summary": "oy 1935.50\n보 @ 00:52",
+        "button": "안내시작"
+      },
+      {
+        "stage": "route",
+        "seconds": 188.05,
+        "destination": "서울역기차역",
+        "distance_km": 35.5,
+        "route_red_pixels": 7662,
+        "text": "6 35.5106 오전09:52 © 예보(무)  Za\n16 서울역기차역 경로취소"
+      },
+      {
+        "stage": "passed",
+        "seconds": 188.17,
+        "host_exit": 0
+      }
+    ]
+  }
 }

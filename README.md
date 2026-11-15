@@ -114,6 +114,10 @@ To sign the package, set `QT_ANDROID_KEYSTORE_PATH`, `QT_ANDROID_KEYSTORE_ALIAS`
 
 You don't need those if you are not working with Guest Additions. You may copy Guest Additions binaries from an artifact or skip them entirely. On x86-64 Linux the build runs these tools through Wine.
 
+`python build.py --no-ce-apps` builds a desktop host without those auxiliary
+guest programs. This needs no CE toolchain. Android packages require the CE
+apps, so that option cannot be combined with `--android`.
+
 macOS and ARM64 Linux cannot run these tools. Give `build.py` the `ce_apps` directory of a Windows or x86-64 Linux build, for example from a CI artifact. The build then copies the binaries from that directory:
 
 ```
