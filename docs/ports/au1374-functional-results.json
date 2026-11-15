@@ -1,0 +1,122 @@
+{
+  "date": "2026-11-15",
+  "board": "inavi_gn2010",
+  "core_commit": "2d1e66fcdb8785e3c53bb87d421711b59f8f8391",
+  "engine_commit": "96d184a2962f3f7e4f8d2b20e1625ae0bdfdc2ad",
+  "host_sha256": "1302284d22f0aaef79f3e98175efdfc94972e12b2ed65da598f51aa9da28e4ab",
+  "sd_capacity_bytes": 8589934592,
+  "archive_files": 2055,
+  "archive_file_bytes": 6880048244,
+  "all_archive_files_verified": true,
+  "ctest_suites_passed": 5,
+  "sdhc_scenarios_passed": 2,
+  "inputs_unchanged": true,
+  "tesseract": "5.5.0",
+  "pillow": "13.0.0",
+  "kor_traineddata_tag": "tesseract-ocr/tessdata_fast/4.1.0",
+  "kor_traineddata_sha256": "6b85e11d9bbf07863b97b3523b1b112844c43e713df8b66418a081fd1060b3b2",
+  "runs": [
+    {
+      "run": 1,
+      "stages": [
+        {
+          "stage": "cold-boot",
+          "seconds": 0.05
+        },
+        {
+          "stage": "map",
+          "seconds": 123.05,
+          "panel": [
+            800,
+            480
+          ],
+          "text": "통계\nOFF"
+        },
+        {
+          "stage": "search",
+          "seconds": 135.93,
+          "text": "퀵검색"
+        },
+        {
+          "stage": "search-results",
+          "seconds": 149.23,
+          "query": "서울역",
+          "text": "경로 검색\n『통합검색 > 검색결과(서울역)                                        ："
+        },
+        {
+          "stage": "route-calculated",
+          "seconds": 185.96,
+          "view": "comparison",
+          "distance_km": 35.5,
+          "route_red_pixels": 10277,
+          "summary": "oy 1935.50\n보 @ 00:52",
+          "button": "안내시작"
+        },
+        {
+          "stage": "route",
+          "seconds": 194.12,
+          "destination": "서울역기차역",
+          "distance_km": 35.5,
+          "route_red_pixels": 7662,
+          "text": "6 35.5106 오전09:52 © 예보(무)  Za\n16 서울역기차역 경로취소"
+        },
+        {
+          "stage": "passed",
+          "seconds": 194.18,
+          "host_exit": 0
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "stages": [
+        {
+          "stage": "cold-boot",
+          "seconds": 0.2
+        },
+        {
+          "stage": "map",
+          "seconds": 128.21,
+          "panel": [
+            800,
+            480
+          ],
+          "text": "통계\nOFF"
+        },
+        {
+          "stage": "search",
+          "seconds": 135.77,
+          "text": "퀵검색"
+        },
+        {
+          "stage": "search-results",
+          "seconds": 148.91,
+          "query": "서울역",
+          "text": "경로 검색\n『통합검색 > 검색결과(서울역)                                        ："
+        },
+        {
+          "stage": "route-calculated",
+          "seconds": 185.68,
+          "view": "comparison",
+          "distance_km": 35.5,
+          "route_red_pixels": 10277,
+          "summary": "oy 1935.50\n보 @ 00:52",
+          "button": "안내시작"
+        },
+        {
+          "stage": "route",
+          "seconds": 193.83,
+          "destination": "서울역기차역",
+          "distance_km": 35.5,
+          "route_red_pixels": 7662,
+          "text": "6 35.5106 오전09:52 © 예보(무)  Za\n16 서울역기차역 경로취소"
+        },
+        {
+          "stage": "passed",
+          "seconds": 193.95,
+          "host_exit": 0
+        }
+      ]
+    }
+  ]
+}

@@ -1,5 +1,9 @@
 # Au1374 Core validation
 
+The later full-card checkpoint completes map loading, Seoul Station search and
+a 35.5 km route. See [functional boot validation](au13xx-inavi-functional-validation.md).
+The app-only milestone and its missing-data diagnosis below are retained as history.
+
 The 2026-11-15 checkpoint runs the original primary NAND partition through the
 registered `inavi_gn2010` Core board. It reaches the original 800x480 launcher,
 mounts the supplied INAVI archive on SD and launches `iNavi.exe` through real
@@ -69,7 +73,7 @@ records these local reference paths under `references/au13xx/`:
 | NAND geometry/protocol | Samsung K9F1208U0C Rev 1.1; original `nandfmd.dll` FAL scanner `C02F5B90` and ECC `C02F7D18` |
 | Factory UID transaction | Original `NANDUUID.dll` command sequence; private sidecar data |
 | USB startup | OpenHCI 1.0a, EHCI 1.0; Linux v6.12 `common/usb.c` and DWC2 `hw.h`; original `ohcd.dll`, `ehci.dll`, `au13xx_usbfn.dll` |
-| SD protocol/controller | SD Physical Layer Simplified Specification 1.10; Linux v6.12 `au1xmmc.c`; original `sdio.dll` packed-data access `C0C03274` |
+| SD protocol/controller | SD Physical Layer Simplified Specifications 1.10 and 7.10 (4.2.3,4.3.10,4.3.13,5.3.3,5.6); Linux v6.12 `au1xmmc.c`; original `sdio.dll` packed-data access `C0C03274` |
 | LCD handoff | Original `ddi_au13xxlcd.dll` Samsung 800x480 table `C02C056C`; Alchemy LCD register descriptions and Linux v6.12 `au1200fb.h` |
 | Touch calibration | Original `Touch.dll` target geometry `C027192C`, raw sample conversion `C0271C94`, and factory hive calibration data |
 | PCM and codec | Alchemy Data Book section 7.4; original `psc_ac97.dll` transfer startup `C02E2A18`; Wolfson WM9705 Rev 4.5 |

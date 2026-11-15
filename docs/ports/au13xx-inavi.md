@@ -2,14 +2,16 @@
 
 The registered `inavi_gn2010` Core board boots the original Windows CE 6 image
 through the 800x480 launcher, mounts the supplied INAVI files on SD, accepts
-calibrated touch and starts the original iNavi executable. The current app
-archive lacks `mapinfo.bin`, so iNavi displays its map-version error dialog.
-Acknowledging that dialog returns cleanly to the launcher.
+calibrated touch and starts the original iNavi executable. With the complete
+SD archive on an 8 GiB FAT32 SDHC image, the application loads its map, searches
+for Seoul Station and draws a 35.5 km route to `서울역기차역`.
 
-![Original iNavi splash and missing-map dialog](au1374-inavi-splash.png)
+![Original iNavi calculated route to Seoul Station](au1374-seoul-station-route.png)
 
-The port is experimental. 23 hardware, display, SD and audio integration checks
-pass in the native Linux development host. See [Core validation](au13xx-inavi-core-validation.md)
+The port is experimental. The 23 hardware, display, SD and audio integration
+checks and added SDHC scenarios pass in the native Linux development host.
+See [functional boot validation](au13xx-inavi-functional-validation.md),
+[Core validation](au13xx-inavi-core-validation.md)
 and the [reproducible host](../../tools/au13xx_core_probe/README.md). Normal Qt
 frontend acceptance and independent Core review remain outstanding.
 
@@ -17,8 +19,9 @@ frontend acceptance and independent Core review remain outstanding.
 
 - MIPS32R1 CP0 banks, TLB and exception handling, with DMA translation-cache coherence.
 - Au1300-family clocks/counters, GPIC, descriptor DMA and UART debug output.
-- Samsung small-page NAND with volatile writes, reconstructed FAL storage and a private UID sidecar.
-- SD1 controller and SDSC card protocol with a deterministic 64 MiB FAT16 image.
+- Samsung small-page NAND with volatile writes, reconstructed FAL storage, a private UID sidecar and addressed OTP reads.
+- SD1 controller, SDSC and SDHC protocols with 64 MiB FAT16 and 8 GiB FAT32 fixtures.
+- File-backed immutable SD storage with volatile sector overlays and compact snapshots.
 - LCD raster timing, indexed palettes, RGB565, pipe priority, alpha and cursor rendering.
 - Calibrated WM97xx-compatible pen input and PSC1 stereo PCM transmission.
 - OHCI/EHCI/DWC2 startup, VSS clock/reset domains and observed ITE startup accesses.
@@ -44,8 +47,9 @@ playback device; PCM timing and sample delivery were exercised through the
 existing silent pacing backend, without audible verification.
 
 No firmware, application files, device identity bytes or map database are
-committed. The next application input is the original SD/map dataset, starting
-with the missing `mapinfo.bin` file.
+committed. Uncaptured OTP pages remain provisionally erased; an optional raw
+`.otp` sidecar can supply the separate 32x528-byte block. Sensor retries persist
+but do not prevent the tested map, search or route sequence.
 
 ## Earlier CPU and Engine-only bring-up
 
