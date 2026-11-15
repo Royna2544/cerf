@@ -1,14 +1,14 @@
 # Au1374 iNavi GN2010 port
 
-The registered `inavi_gn2010` Core board boots the original Windows CE6 image
-through the800x480 launcher, mounts the supplied INAVI files on SD, accepts
+The registered `inavi_gn2010` Core board boots the original Windows CE 6 image
+through the 800x480 launcher, mounts the supplied INAVI files on SD, accepts
 calibrated touch and starts the original iNavi executable. The current app
 archive lacks `mapinfo.bin`, so iNavi displays its map-version error dialog.
 Acknowledging that dialog returns cleanly to the launcher.
 
 ![Original iNavi splash and missing-map dialog](au1374-inavi-splash.png)
 
-The port is experimental.23 hardware, display, SD and audio integration checks
+The port is experimental. 23 hardware, display, SD and audio integration checks
 pass in the native Linux development host. See [Core validation](au13xx-inavi-core-validation.md)
 and the [reproducible host](../../tools/au13xx_core_probe/README.md). Normal Qt
 frontend acceptance and independent Core review remain outstanding.
@@ -18,7 +18,7 @@ frontend acceptance and independent Core review remain outstanding.
 - MIPS32R1 CP0 banks, TLB and exception handling, with DMA translation-cache coherence.
 - Au1300-family clocks/counters, GPIC, descriptor DMA and UART debug output.
 - Samsung small-page NAND with volatile writes, reconstructed FAL storage and a private UID sidecar.
-- SD1 controller and SDSC card protocol with a deterministic64MiB FAT16 image.
+- SD1 controller and SDSC card protocol with a deterministic 64 MiB FAT16 image.
 - LCD raster timing, indexed palettes, RGB565, pipe priority, alpha and cursor rendering.
 - Calibrated WM97xx-compatible pen input and PSC1 stereo PCM transmission.
 - OHCI/EHCI/DWC2 startup, VSS clock/reset domains and observed ITE startup accesses.
@@ -33,7 +33,7 @@ submodules pin the same revision. `.gitmodules` points to the port forks, so
 Config0/Config1, external board inputs, virtual SD identity and geometry,
 codec identity, battery ADC input and bootloader display handoff retain their
 explicitly provisional status. The LCD handoff is selected from the original
-driver's Samsung800x480 table, with its enabled state inferred. Original NAND
+driver's Samsung 800x480 table, with its enabled state inferred. Original NAND
 OOB and physical bad-block placement were not recovered. Guest media writes
 remain volatile.
 
