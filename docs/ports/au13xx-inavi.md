@@ -1,4 +1,4 @@
-# Au13xx iNavi port: initial CPU checkpoint
+# Au13xx iNavi port: CPU foundation and startup experiment
 
 This checkpoint starts support for the MIPS Alchemy CPU used by the supplied
 Windows CE 6 image. It does not register a usable Au13xx board. The original
@@ -140,5 +140,67 @@ transplant their Windows CE API replacements into CERF.
 - Core base: `14f66037078585bf12eb2f0ac19a63a91800b612`.
 - Engine base: `6e9a4062f3d86e45e346dac9156fa4bbaaf1d5b9`.
 
-Hardware register values have not been guessed to make startup continue.
+The initial strict probes used only established values. The later experimental
+probe below uses explicitly provisional values to continue startup.
 No ROM or application binaries are included in source commits.
+
+
+## Au1374 startup experiment with provisional values
+
+The user identified the SoC as Au1374 and authorized continued experiments:
+
+> then stop reporting and plug a reasonable value and keep trying okay?
+
+`tools/au13xx_startup_probe/` is an opt-in Linux Engine development tool,
+separate from a registered Core board. Its README records the handoff,
+register assumptions, references, regression cases and cleanup obligation.
+Config0 defaults to `0x80000083`; Config1 defaults to `0x3E63318A`. Neither
+word is a captured Au1374 value. Config1 chooses 32 paired TLB slots and
+16 KiB I/D caches, with provisional four-way associativity and 32-byte lines.
+
+The reconstructed tool builds in Release mode with warnings treated as
+errors. Its regression executable passed, including actual same-VA Engine
+execution through ASIDs 1/2/1 with distinct physical programs. The original
+ROM completed OEMInit, printed the captured CPU identity and 792 MHz clock,
+initialized the Samsung NAND path, then erased 3955 volatile blocks and made
+68 FAL metadata program operations. Initial OOB reads address page `0x11A0`.
+
+The optional logical NAND export is only a synthetic linear main-area import
+with erased spare bytes. Its contents are discarded by the guest's format;
+these results do not validate the original FAL mapping or mount the original
+store. Zero boot arguments also select a different handoff branch from the
+real device's good-signature boot. Subsequent address-error exceptions occur;
+the guest-cycle budget is a termination condition, not boot acceptance.
+
+The subsequent timer implementation delivers CPU Count/Compare and RTC/GPIC
+interrupts through the original CE handlers. A synthetic raw NAND builder now
+supplies the guest-derived FAL metadata and ECC; its run reaches the original
+I2C and PSC0 SPI initialization. The DMA continuation passes the former
+global-register boundary at physical `0x14003000` and initializes both SPI
+DMA channels. The ECC encoder matches the original guest
+function across 2116 sectors. The UART continuation then reaches the USB control
+read at `0x1402102C` in `ohcd.dll`, after UART0/UART3 initialization.
+
+The first independent runtime review found ten correctness and rule defects
+outside the original tests. Follow-up regressions now cover executable DMA
+writes, comparison length versus bus width, source/destination burst retention,
+elapsed throttle requests, CPUPLL and UART rate changes, GPIO output readback,
+explicit rejection of armed watchpoints, and descriptor-fetch arbitration.
+The physical bus uses the Engine byte-order helpers. The new MIPS bus-master
+coherence service also has a standalone Engine regression across two pages.
+The next review identified nine further issues: physical-address truncation,
+Cause.IV, reverse-endian controls, read-only CP0 fields, GPIO DMA routing,
+receive-break acknowledgement, narrow 2D descriptors, manifest-path overwrites
+and stale build/reference instructions. The corrected probe passes 22 CTest
+cases, including regressions for those findings and unsupported GPIO DMA
+selections. Regression results alone do not establish further boot milestones.
+The third review found inconsistent level-low input detection and accepted but
+unmodeled UART pin gating and counter bypass. Detection now follows PINVAL;
+the unsupported output and external-clock controls halt at the write.
+The ECC comparison includes
+a complete single-bit basis for both
+256-byte halves. The linear map is synthetic, not a recovered physical map.
+
+No display, shell or iNavi execution is demonstrated. Its verified paths must move into
+Core services, with UART TX connected to KernelDebugSink, before removing
+the temporary probe. Original inputs are read-only and retain their hashes.
