@@ -11,6 +11,7 @@
 #include "../../libCerfCore/src/execution/mips_engine_bridge.h"
 #include "../../libCerfCore/src/peripherals/peripheral_dispatcher.h"
 #include <cerfengine/mips/mips_cpu.h>
+#include "au1374_probe_control.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -91,6 +92,7 @@ int main(int argc, char** argv) {
         const bool ready = fatal.Guard([&] {
             emulator.ResolveAllSlots();
             emulator.ReadyAllServices();
+            Au1374ProbeTraces(emulator);
             emulator.StartGuest();
         });
         if (ready) {
@@ -99,6 +101,10 @@ int main(int argc, char** argv) {
             bool finished = false;
             std::thread deadline([&] {
                 std::unique_lock<std::mutex> lock(mutex);
+                if (const auto* control = std::getenv("CERF_AU1374_PROBE_CONTROL")) {
+                    Au1374ProbeControl(emulator, control, lock, wake, finished);
+                    return;
+                }
                 const bool tap = std::getenv("CERF_AU1374_PROBE_TAP") != nullptr;
                 const bool acknowledge = tap && std::getenv("CERF_AU1374_PROBE_ACK_MAP_DIALOG") != nullptr;
                 if (tap) {
