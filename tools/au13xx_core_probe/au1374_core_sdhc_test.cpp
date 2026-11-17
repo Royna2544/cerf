@@ -3,6 +3,7 @@
 #undef main
 
 #include "../../libCerfCore/src/peripherals/mmc/mmc_card.h"
+#include <cerfcore/core/device_config.h>
 #include <cerfcore/state/state_stream.h>
 
 #include <array>
@@ -15,6 +16,9 @@ void Check(bool value, const char* message) {
 
 void Test(cerfcore::CerfEmulator& emu) {
     using namespace cerfcore;
+    for (const auto& entry : emu.Get<DeviceConfig>().bundled_sd_cards) {
+        Check(!entry.writable, "SDHC test writes and erases the card; it refuses a writable sd_cards entry");
+    }
     auto& card = emu.Get<MmcCard>();
     uint32_t response[4]{};
     const auto cmd = [&](uint8_t index, uint32_t argument) { return card.Command(index, argument, response); };

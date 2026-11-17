@@ -73,6 +73,7 @@ private:
         cerfcore::host_platform::HostFile file;
         const auto& config = emu_.Get<cerfcore::DeviceConfig>();
         Check(config.bundled_sd_cards.size() == 1u, "SD fixture configuration");
+        Check(!config.bundled_sd_cards[0u].writable, "SD test refuses a writable sd_cards entry");
         Check(file.Open(cerfcore::ResolveDeviceFile(config.device_name, config.bundled_sd_cards[0u].file),
                         cerfcore::host_platform::FileMode::kReadExisting), "SD fixture open");
         uint32_t done = 0u;

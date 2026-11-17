@@ -12,6 +12,7 @@
 #include "../../libCerfCore/src/peripherals/peripheral_dispatcher.h"
 #include <cerfengine/mips/mips_cpu.h>
 #include "au1374_probe_control.h"
+#include "au1374_probe_nmea.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -96,6 +97,7 @@ int main(int argc, char** argv) {
             emulator.StartGuest();
         });
         if (ready) {
+            Au1374ProbeNmea nmea(emulator);
             std::mutex mutex;
             std::condition_variable wake;
             bool finished = false;
