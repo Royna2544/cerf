@@ -28,6 +28,7 @@ void CliUsage::Print(const char* prog) {
     printf("  --allow-flood            Disable stdout anti-flood\n");
     printf("  --quiet                  Disable all log output\n");
     printf("  --disable-network        Force-disable network backend\n");
+    printf("  --record-audio=DIR       Write each guest audio stream to DIR as WAV files\n");
     printf("  --screen-width=N         Override device cerf.json board.configurable_screen_width\n");
     printf("  --screen-height=N        Override device cerf.json board.configurable_screen_height\n");
     printf("  --screen-dpi=N           Force guest display DPI (logical px/inch; guest-additions only)\n");
