@@ -1,6 +1,4 @@
-#define main Au1374OriginalBootHostMain
-#include "au1374_core_host.cpp"
-#undef main
+#include "au1374_core_test_fixture.h"
 
 #include <cerfcore/state/state_stream.h>
 #include <cerfcore/platform/host_file.h>
@@ -9,17 +7,14 @@
 #include <cerfcore/core/device_config.h>
 
 #include <array>
-#include <stdexcept>
 
 namespace {
 
-void Check(bool value, const char* message) {
-    if (!value) throw std::runtime_error(message);
-}
+using au1374_core_test::Check;
 
-class SdTest {
+class SdTest : au1374_core_test::CoreTestFixture {
 public:
-    explicit SdTest(cerfcore::CerfEmulator& emu) : emu_(emu), bus_(emu.Get<cerfcore::PeripheralDispatcher>()) {}
+    explicit SdTest(cerfcore::CerfEmulator& emu) : CoreTestFixture(emu) {}
     void Run() {
         Write(0xCu, 1u);
         Write(0xCu, 3u);
@@ -116,26 +111,10 @@ private:
         Check(Read(4u) == first, "SD media cells restore");
         std::puts("PASS Core SD volatile write, mid-block snapshot and media restoration");
     }
-    cerfcore::CerfEmulator& emu_;
-    cerfcore::PeripheralDispatcher& bus_;
 };
 
 }
 
 int main(int argc, char** argv) {
-    using namespace cerfcore;
-    Log::SetFile("au1374-core-sd-test.log");
-    Log::SetFlush(true);
-    Log::SetEnabled(Log::MASK_ALL);
-    CerfConfig config;
-    config.device_override = "au1374";
-    CerfEmulator emulator(config, argc, argv);
-    emulator.CreateAllServices();
-    const bool passed = emulator.Get<Fatal>().Guard([&] {
-        emulator.ResolveAllSlots();
-        emulator.ReadyAllServices();
-        SdTest(emulator).Run();
-    });
-    Check(passed, "Core SD tests halted");
-    return 0;
+    return au1374_core_test::RunCoreTest(argc, argv, "sd", [](cerfcore::CerfEmulator& emu) { SdTest(emu).Run(); });
 }

@@ -1,29 +1,14 @@
-#define main Au1374OriginalBootHostMain
-#include "au1374_core_host.cpp"
-#undef main
-
-#include "../../libCerfCore/src/execution/mips_engine_bridge.h"
-#include "../../libCerfCore/src/execution/guest_cycle_clock.h"
-#include "../../libCerfCore/src/peripherals/peripheral_dispatcher.h"
-#include <cerfcore/cpu/emulated_memory.h>
-#include <cerfengine/byte_order.h>
-#include <cerfengine/mips/mips_cpu.h>
+#include "au1374_core_test_fixture.h"
 
 #include <array>
-#include <stdexcept>
 
 namespace {
 
-void Check(bool value, const char* message) {
-    if (!value) throw std::runtime_error(message);
-}
+using au1374_core_test::Check;
 
-class DisplayTest {
+class DisplayTest : au1374_core_test::CoreTestFixture {
 public:
-    explicit DisplayTest(cerfcore::CerfEmulator& emu)
-        : emu_(emu), bus_(emu.Get<cerfcore::PeripheralDispatcher>()),
-          clock_(emu.Get<cerfcore::GuestCycleClock>()),
-          state_(*emu.Get<cerfcore::MipsEngineBridge>().Engine().Get<cerfengine::MipsCpu>().State()) {}
+    explicit DisplayTest(cerfcore::CerfEmulator& emu) : CoreTestFixture(emu) {}
     void Run() {
         Sd();
         Write(4u, 0u);
@@ -59,14 +44,8 @@ public:
     }
 
 private:
-    void Tick(uint32_t cycles) { state_.guest_cycle_counter += cycles; clock_.OnDispatch(); }
     void Write(uint32_t offset, uint32_t value) { bus_.WriteWord(0x15000000u + offset, value); }
     uint32_t Read(uint32_t offset) { return bus_.ReadWord(0x15000000u + offset); }
-    void Put(uint32_t address, uint32_t value) {
-        auto* data = emu_.Get<cerfcore::EmulatedMemory>().TryTranslateRange(address, 4u, true);
-        Check(data != nullptr, "display fixture RAM");
-        cerfengine::le::Put32(data, value);
-    }
     std::array<uint32_t, 2u> Render() {
         std::array<uint32_t, 2u> pixels{};
         emu_.Get<cerfcore::PanelFrameRenderer>().RenderInto(pixels.data(), 2u, 1u);
@@ -131,28 +110,11 @@ private:
               "LCD cursor color, alpha and pattern order");
         std::puts("PASS Core LCD pipe priority, alpha blend and hardware cursor");
     }
-    cerfcore::CerfEmulator& emu_;
-    cerfcore::PeripheralDispatcher& bus_;
-    cerfcore::GuestCycleClock& clock_;
-    cerfengine::MipsCpuState& state_;
 };
 
 }
 
 int main(int argc, char** argv) {
-    using namespace cerfcore;
-    Log::SetFile("au1374-core-display-test.log");
-    Log::SetFlush(true);
-    Log::SetEnabled(Log::MASK_ALL);
-    CerfConfig config;
-    config.device_override = "au1374";
-    CerfEmulator emulator(config, argc, argv);
-    emulator.CreateAllServices();
-    const bool passed = emulator.Get<Fatal>().Guard([&] {
-        emulator.ResolveAllSlots();
-        emulator.ReadyAllServices();
-        DisplayTest(emulator).Run();
-    });
-    Check(passed, "Core display/storage tests halted");
-    return 0;
+    return au1374_core_test::RunCoreTest(argc, argv, "display",
+                                         [](cerfcore::CerfEmulator& emu) { DisplayTest(emu).Run(); });
 }

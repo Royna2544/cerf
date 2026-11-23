@@ -219,9 +219,12 @@ view.
 pinned registers.** A miss helper can read a pinned slot. It must not
 write one.
 
-**A helper that unwinds to the dispatcher in the middle of a block
-leaves memory older than the pinned registers.** A guest that delivers
-exceptions through such an unwind must not pin slots.
+**Every call out of a block stores the modified pinned registers
+first.** A C++ call parks them (`A64PinnedSlots::Park`), and a memory
+tail or a miss stub stores them before its slow entry. A helper that
+unwinds to the dispatcher in the middle of a block therefore leaves
+memory current. The dispatcher enters the next block through the entry
+stub, which loads the pinned registers again.
 
 **The lowering tracks the state of each pinned register at compile time,
 across labels and condition guards.** A write to a pinned slot inside a
@@ -361,6 +364,12 @@ serves both. When the gate passes, no access happens, and the channel
 sets the guest PC back to this instruction. Control then leaves the
 block.
 
+The timer events that are due at the cycle of the access run before the
+gate. Such an event can raise the line at that cycle, and the gate then
+sees the line. If the access ran first, the guest would read the device
+state of an interrupt that it did not take yet. The line rises at the
+cycle of the edge - see [agent_docs/timers_clocks.md](timers_clocks.md).
+
 The guard takes two forms. The memory slow path carries it at the
 peripheral branch of a translation, and clears the record itself. A
 load-store helper carries it at its own peripheral branch, and clears
@@ -377,6 +386,29 @@ This path runs only when two conditions are true together. The
 translation resolved the access to peripheral space. The instruction
 commits no state before this point. Every other access keeps delivery
 at block boundaries.
+
+The MIPS and SH engines apply the gate at every peripheral access that
+can still restart, after the due timer events run. The gate cannot take
+the same interrupt twice. On MIPS, exception entry disables interrupts:
+the R4000-class model sets Status.EXL, and the R3000-class model pushes
+the KU/IE stack, which clears IEc (`mips_exception_r4000.cpp`,
+`mips_exception_r3000.cpp`). On SH, the interrupt controller accepts the
+level that it publishes, so a back-out is followed by the interrupt or
+by a new level.
+
+- **MIPS** takes the interrupt in the memory helper, before the access.
+  The helper first copies the device lines into Cause. EPC then holds the
+  address of the access, or the address of the branch with Cause.BD set
+  when the access is in a delay slot (MIPS32 PRA Rev 2.50, Table 5-9).
+  The gate applies only at the first bus access of an instruction. SWL,
+  SWR, SDL and SDR store byte by byte, and their later bytes keep delivery
+  at the block boundary.
+- **SH** backs out like ARM. The frontend marks each access that can back
+  out: the first access of an instruction, outside a taken delay slot.
+  The SH7709S hardware manual, section 4.2.3, accepts no exception
+  between a delayed branch and its delay slot. The memory helper leaves
+  the PC at the instruction and leaves the block. The dispatcher then
+  accepts the interrupt, and SPC holds the address of the instruction.
 
 ---
 
@@ -412,12 +444,14 @@ The parts that differ from ARM:
   the doubleword loads and stores, the
   unaligned merges, the 128-bit products, doubleword division, and the
   variable doubleword shifts.
-- **Loads and stores call the memory helpers.** The MIPS memory model
-  has no inline TLB lookup.
+- **Loads and stores use the shared CerfIR soft-TLB inline lookup.** A
+  miss, a peripheral access or a fault goes through the slow path
+  (`MipsIrMemorySlowPath`) to the memory helpers.
 - **A write that can unmask an interrupt ends the block.** A write to
   CP0 Status or Cause, and RFE, return to the dispatcher, which then
-  delivers a pending interrupt. A clock event that a memory helper
-  dispatches can set a Cause bit, so that helper also requests a chain
-  exit.
+  delivers a pending interrupt. A memory helper that dispatches clock
+  events requests a chain exit, because an event can set a Cause bit. A
+  peripheral access that can still restart first takes any interrupt
+  that the CPU accepts (see § I/O routing).
 - **Unimplemented paths halt, never silent-UND.** A decoder reject
   halts the run with the opcode and the PC.

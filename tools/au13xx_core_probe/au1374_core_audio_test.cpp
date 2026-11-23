@@ -1,22 +1,14 @@
-#define main Au1374OriginalBootHostMain
-#include "au1374_core_host.cpp"
-#undef main
+#include "au1374_core_test_fixture.h"
 
-#include "../../libCerfCore/src/execution/guest_cycle_clock.h"
 #include <cerfcore/state/state_stream.h>
-#include <stdexcept>
 
 namespace {
 
-void Check(bool value, const char* message) {
-    if (!value) throw std::runtime_error(message);
-}
+using au1374_core_test::Check;
 
-class AudioTest {
+class AudioTest : au1374_core_test::CoreTestFixture {
 public:
-    explicit AudioTest(cerfcore::CerfEmulator& emu)
-        : emu_(emu), bus_(emu.Get<cerfcore::PeripheralDispatcher>()), clock_(emu.Get<cerfcore::GuestCycleClock>()),
-          cpu_(*emu.Get<cerfcore::MipsEngineBridge>().Engine().Get<cerfengine::MipsCpu>().State()) {}
+    explicit AudioTest(cerfcore::CerfEmulator& emu) : CoreTestFixture(emu) {}
     void Run() {
         Write(0u, 0x24u);
         Write(0x24u, 2u);
@@ -67,13 +59,13 @@ private:
             }
             Check(writer.Commit(), "AC97 snapshot commit");
         }
-        const auto saved_cycles = cpu_.guest_cycle_counter;
-        const auto saved_folded = cpu_.guest_cycle_folded;
+        const auto saved_cycles = state_.guest_cycle_counter;
+        const auto saved_folded = state_.guest_cycle_folded;
         Tick(33000u);
         bus_.WriteWord(0x10900060u, 0x3Fu);
         Tick(1000000u);
-        cpu_.guest_cycle_counter = saved_cycles;
-        cpu_.guest_cycle_folded = saved_folded;
+        state_.guest_cycle_counter = saved_cycles;
+        state_.guest_cycle_folded = saved_folded;
         {
             cerfcore::StateReader reader(emu_, path);
             for (auto* part : parts) {
@@ -95,31 +87,13 @@ private:
         Check((Read(0x14u) & 0x10u) == 0u, "restored AC97 stop completion");
         std::puts("PASS Core active AC97 FIFO and frame phase restore across CPU-rate changes");
     }
-    void Tick(uint32_t cycles) { cpu_.guest_cycle_counter += cycles; clock_.OnDispatch(); }
     void Write(uint32_t offset, uint32_t value) { bus_.WriteWord(0x10A01000u + offset, value); }
     uint32_t Read(uint32_t offset) { return bus_.ReadWord(0x10A01000u + offset); }
-    cerfcore::CerfEmulator& emu_;
-    cerfcore::PeripheralDispatcher& bus_;
-    cerfcore::GuestCycleClock& clock_;
-    cerfengine::MipsCpuState& cpu_;
 };
 
 }
 
 int main(int argc, char** argv) {
-    using namespace cerfcore;
-    Log::SetFile("au1374-core-audio-test.log");
-    Log::SetFlush(true);
-    Log::SetEnabled(Log::MASK_ALL);
-    CerfConfig config;
-    config.device_override = "au1374";
-    CerfEmulator emulator(config, argc, argv);
-    emulator.CreateAllServices();
-    const bool passed = emulator.Get<Fatal>().Guard([&] {
-        emulator.ResolveAllSlots();
-        emulator.ReadyAllServices();
-        AudioTest(emulator).Run();
-    });
-    Check(passed, "Core audio tests halted");
-    return 0;
+    return au1374_core_test::RunCoreTest(argc, argv, "audio",
+                                         [](cerfcore::CerfEmulator& emu) { AudioTest(emu).Run(); });
 }

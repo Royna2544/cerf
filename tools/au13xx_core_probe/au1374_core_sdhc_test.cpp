@@ -1,18 +1,13 @@
-#define main Au1374OriginalBootHostMain
-#include "au1374_core_host.cpp"
-#undef main
+#include "au1374_core_test_fixture.h"
 
 #include "../../libCerfCore/src/peripherals/mmc/mmc_card.h"
 #include <cerfcore/core/device_config.h>
 #include <cerfcore/state/state_stream.h>
 
 #include <array>
-#include <stdexcept>
 
 namespace {
-void Check(bool value, const char* message) {
-    if (!value) throw std::runtime_error(message);
-}
+using au1374_core_test::Check;
 
 void Test(cerfcore::CerfEmulator& emu) {
     using namespace cerfcore;
@@ -84,17 +79,5 @@ void Test(cerfcore::CerfEmulator& emu) {
 }
 
 int main(int argc, char** argv) {
-    using namespace cerfcore;
-    Log::SetFile("au1374-core-sdhc-test.log");
-    CerfConfig config;
-    config.device_override = "au1374";
-    CerfEmulator emu(config, argc, argv);
-    emu.CreateAllServices();
-    const bool passed = emu.Get<Fatal>().Guard([&] {
-        emu.ResolveAllSlots();
-        emu.ReadyAllServices();
-        Test(emu);
-    });
-    Check(passed, "SDHC tests halted");
-    return 0;
+    return au1374_core_test::RunCoreTest(argc, argv, "sdhc", Test);
 }

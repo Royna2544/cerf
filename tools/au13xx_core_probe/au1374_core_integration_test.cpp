@@ -1,10 +1,5 @@
-#define main Au1374OriginalBootHostMain
-#include "au1374_core_host.cpp"
-#undef main
+#include "au1374_core_test_fixture.h"
 
-#include "../../libCerfCore/src/execution/mips_engine_bridge.h"
-#include "../../libCerfCore/src/execution/guest_cycle_clock.h"
-#include "../../libCerfCore/src/peripherals/peripheral_dispatcher.h"
 #include "../../libCerfCore/src/socs/au1300/au1300_clock_peripheral.h"
 #include "../../libCerfCore/src/socs/au1300/au1300_dma_peripheral.h"
 #include "../../libCerfCore/src/socs/au1300/au1300_gpic_peripheral.h"
@@ -23,36 +18,25 @@
 #include <cerfcore/core/cerf_paths.h>
 #include <cerfcore/core/device_config.h>
 #include <cerfcore/platform/host_file.h>
-#include <cerfcore/cpu/emulated_memory.h>
 #include <cerfcore/state/state_stream.h>
-#include <cerfengine/byte_order.h>
 #include <cerfengine/guest_engine.h>
-#include <cerfengine/mips/mips_cpu.h>
 
 #include <array>
 #include <cstring>
-#include <stdexcept>
 #include <vector>
 
 namespace {
 
-void Check(bool passed, const char* message) {
-    if (!passed) throw std::runtime_error(message);
-}
+using au1374_core_test::Check;
 
-class CoreIntegrationTest {
+class CoreIntegrationTest : au1374_core_test::CoreTestFixture {
 public:
     explicit CoreIntegrationTest(cerfcore::CerfEmulator& emulator)
-        : emu_(emulator), engine_(emulator.Get<cerfcore::MipsEngineBridge>().Engine()),
-          state_(*engine_.Get<cerfengine::MipsCpu>().State()),
-          clock_(emulator.Get<cerfcore::GuestCycleClock>()),
-          bus_(emulator.Get<cerfcore::PeripheralDispatcher>()),
-          ram_(emulator.Get<cerfcore::EmulatedMemory>()) {}
+        : CoreTestFixture(emulator), engine_(emulator.Get<cerfcore::MipsEngineBridge>().Engine()) {}
 
     void Run() {
         LargeTransfer();
         RequestWakeup();
-        I2cSensors();
         Nand();
         NandUid();
         CodeCoherence();
@@ -66,22 +50,6 @@ public:
     }
 
 private:
-    void Tick(uint32_t cycles) {
-        state_.guest_cycle_counter += cycles;
-        clock_.OnDispatch();
-    }
-    void Write(uint32_t pa, uint32_t value) { bus_.WriteWord(pa, value); }
-    uint32_t Read(uint32_t pa) { return bus_.ReadWord(pa); }
-    void Put(uint32_t pa, uint32_t value) {
-        auto* data = ram_.TryTranslateRange(pa, 4u, true);
-        Check(data != nullptr, "test RAM write route");
-        cerfengine::le::Put32(data, value);
-    }
-    uint32_t Get(uint32_t pa) {
-        const auto* data = ram_.TryTranslateRange(pa, 4u);
-        Check(data != nullptr, "test RAM read route");
-        return cerfengine::le::U32(data);
-    }
     void Arm(const std::array<uint32_t, 8u>& descriptor) {
         Write(0x14002000u, 0u);
         Write(0x14002014u, 6u);
@@ -124,173 +92,6 @@ private:
         Check(Get(0x41000u) == 0x1234ABCDu, "GPIO request failed to wake DMA event");
         Check(Read(0x14002018u) == 0u, "GPIO DMA remaining count");
         std::puts("PASS Core GPIO request wakes DMA without a DMA-register access");
-    }
-    void I2cSensors() {
-        const auto pin = [&](uint32_t gpio, uint32_t mode) {
-            Write(0x10201000u + gpio * 4u, mode);
-        };
-        const auto level = [&](uint32_t gpio) {
-            return (Read(0x10200000u + (gpio / 32u) * 4u) & (1u << (gpio % 32u))) != 0u;
-        };
-        const auto start = [&](uint32_t sda, uint32_t scl) {
-            pin(scl, 3u);
-            pin(sda, 0u);
-            pin(sda, 2u);
-        };
-        const auto stop = [&](uint32_t sda, uint32_t scl) {
-            pin(sda, 2u);
-            pin(scl, 3u);
-            pin(sda, 0u);
-        };
-        const auto send = [&](uint32_t sda, uint32_t scl, uint8_t byte) {
-            for (int bit = 7; bit >= 0; --bit) {
-                pin(scl, 2u);
-                pin(sda, (byte & (1u << bit)) != 0u ? 0u : 2u);
-                pin(scl, 3u);
-            }
-            pin(scl, 2u);
-            pin(sda, 0u);
-            pin(scl, 3u);
-            const bool ack = !level(sda);
-            pin(scl, 2u);
-            return ack;
-        };
-        const auto recv = [&](uint32_t sda, uint32_t scl, bool acknowledge = false) {
-            uint8_t value = 0u;
-            for (uint32_t bit = 0u; bit < 8u; ++bit) {
-                pin(scl, 3u);
-                value = static_cast<uint8_t>((value << 1u) | (level(sda) ? 1u : 0u));
-                pin(scl, 2u);
-            }
-            pin(sda, acknowledge ? 2u : 0u);
-            pin(scl, 3u);
-            pin(scl, 2u);
-            pin(sda, 0u);
-            return value;
-        };
-        constexpr uint32_t sda = 70u;
-        constexpr uint32_t scl = 63u;
-        const auto command = [&](uint8_t address, uint8_t value) {
-            start(sda, scl);
-            Check(send(sda, scl, address << 1u), "YAS526B command address NACK");
-            Check(send(sda, scl, value), "YAS526B command NACK");
-            stop(sda, scl);
-        };
-        const auto read = [&](uint8_t address, uint32_t count) {
-            std::vector<uint8_t> bytes;
-            start(sda, scl);
-            Check(send(sda, scl, (address << 1u) | 1u), "YAS526B data address NACK");
-            for (uint32_t i = 0u; i < count; ++i) bytes.push_back(recv(sda, scl, i + 1u < count));
-            stop(sda, scl);
-            return bytes;
-        };
-        for (uint8_t addr : {0x2Eu, 0x2Fu}) command(addr, 0xC0u);
-        for (uint8_t addr : {0x2Eu, 0x2Fu}) {
-            command(addr, 0xA0u);
-            (void)read(addr, 4u);
-            const auto calibration = read(addr, 4u);
-            if (addr == 0x2Fu) Check((calibration[3] & 1u) == 0u, "YAS526B legacy chip selection");
-        }
-        constexpr std::array<uint8_t, 16u> xy_commands{
-            0x88u, 0x81u, 0x89u, 0x82u, 0x8Au, 0x83u, 0x8Bu, 0x84u,
-            0x8Cu, 0x85u, 0x8Du, 0x86u, 0x8Eu, 0x87u, 0x8Fu, 0x80u};
-        constexpr std::array<uint8_t, 8u> z_commands{
-            0x88u, 0x81u, 0x89u, 0x82u, 0x8Au, 0x83u, 0x8Bu, 0x80u};
-        for (uint8_t byte : xy_commands) command(0x2Eu, byte);
-        for (uint8_t byte : z_commands) command(0x2Fu, byte);
-        command(0x2Eu, 0x01u);
-        command(0x2Fu, 0x01u);
-        const auto xy_rough = read(0x2Eu, 4u);
-        const auto z_rough = read(0x2Fu, 2u);
-        Check(xy_rough[0] == 1u && xy_rough[2] == 1u && z_rough[0] == 1u,
-              "YAS526B rough-offset measurement bounds");
-        for (uint8_t byte : {0x4Bu, 0x6Bu}) command(0x2Eu, byte);
-        command(0x2Fu, 0x4Bu);
-        command(0x2Eu, 0x00u);
-        command(0x2Fu, 0x00u);
-        const auto xy_sample = read(0x2Eu, 4u);
-        const auto z_sample = read(0x2Fu, 2u);
-        Check(xy_sample[0] == 0x28u && xy_sample[2] == 0x2Fu &&
-              z_sample[0] == 0x1Fu && (xy_sample[0] & 0x80u) == 0u,
-              "YAS526B legacy measurement and status");
-        std::puts("PASS Core YAS526B guest calibration, configuration and measurement sequence");
-
-        start(sda, scl);
-        Check(send(sda, scl, 0x38u << 1u), "SMB380 address write NACK");
-        Check(send(sda, scl, 0u), "SMB380 register pointer NACK");
-        stop(sda, scl);
-        start(sda, scl);
-        Check(send(sda, scl, (0x38u << 1u) | 1u), "SMB380 address read NACK");
-        Check(recv(sda, scl) == 0x02u, "SMB380 chip ID over its GPIO bus");
-        stop(sda, scl);
-        start(sda, scl);
-        Check(send(sda, scl, 0x2Eu << 1u), "YAS526B XY address write NACK");
-        Check(send(sda, scl, 0u), "YAS526B XY measurement NACK");
-        stop(sda, scl);
-        start(sda, scl);
-        Check(send(sda, scl, (0x2Eu << 1u) | 1u), "YAS526B XY address read NACK");
-        Check(recv(sda, scl) == 0x28u, "YAS526B north-facing measurement over sensor bus");
-        stop(sda, scl);
-        start(sda, scl);
-        Check(send(sda, scl, 0x2Eu << 1u), "YAS526B XY control address NACK");
-        Check(send(sda, scl, 0xC0u), "YAS526B XY control command NACK");
-        stop(sda, scl);
-        start(sda, scl);
-        Check(send(sda, scl, 0x2Eu << 1u), "YAS526B XY configuration address NACK");
-        Check(send(sda, scl, 0xA0u), "YAS526B XY configuration command NACK");
-        stop(sda, scl);
-        start(sda, scl);
-        Check(send(sda, scl, 0x2Fu << 1u), "YAS526B Z measurement address NACK");
-        Check(send(sda, scl, 0u), "YAS526B Z measurement command NACK");
-        stop(sda, scl);
-        start(sda, scl);
-        Check(send(sda, scl, (0x2Fu << 1u) | 1u), "YAS526B Z address read NACK");
-        for (uint32_t i = 0u; i < 4u; ++i) (void)recv(sda, scl, i != 3u);
-        stop(sda, scl);
-        start(sda, scl);
-        Check(send(sda, scl, 0x2Eu << 1u), "YAS526B XY normal-mode address NACK");
-        Check(send(sda, scl, 0x80u), "YAS526B XY normal-mode command NACK");
-        stop(sda, scl);
-        std::puts("PASS Core SMB380 and YAS526B respond on the sensor GPIO I2C bus");
-
-        constexpr uint32_t light_sda = 56u;
-        constexpr uint32_t light_scl = 73u;
-        start(light_sda, light_scl);
-        Check(send(light_sda, light_scl, 0x23u << 1u), "BH1750 power-on address NACK");
-        Check(send(light_sda, light_scl, 0x01u), "BH1750 power-on command NACK");
-        stop(light_sda, light_scl);
-        start(light_sda, light_scl);
-        Check(send(light_sda, light_scl, 0x23u << 1u), "BH1750 mode address NACK");
-        Check(send(light_sda, light_scl, 0x10u), "BH1750 continuous H-resolution command NACK");
-        stop(light_sda, light_scl);
-        start(light_sda, light_scl);
-        Check(send(light_sda, light_scl, (0x23u << 1u) | 1u), "BH1750 early read NACK");
-        Check(recv(light_sda, light_scl, true) == 0u, "BH1750 sample ready too early (high)");
-        Check(recv(light_sda, light_scl) == 0u, "BH1750 sample ready too early (low)");
-        stop(light_sda, light_scl);
-        Tick(static_cast<uint32_t>(clock_.NsToCycles(200000000)));
-        start(light_sda, light_scl);
-        Check(send(light_sda, light_scl, (0x23u << 1u) | 1u), "BH1750 address read NACK");
-        Check(recv(light_sda, light_scl, true) == 0u, "BH1750 100 lx sample high byte");
-        Check(recv(light_sda, light_scl) == 120u, "BH1750 100 lx sample low byte");
-        stop(light_sda, light_scl);
-        std::puts("PASS Core BH1750 light sample through GPIO I2C bus");
-
-        constexpr uint32_t video_sda = 60u;
-        constexpr uint32_t video_scl = 74u;
-        start(video_sda, video_scl);
-        Check(send(video_sda, video_scl, 0x44u << 1u), "TW9900 address write NACK");
-        Check(send(video_sda, video_scl, 1u), "TW9900 ID pointer NACK");
-        stop(video_sda, video_scl);
-        start(video_sda, video_scl);
-        Check(send(video_sda, video_scl, (0x44u << 1u) | 1u), "TW9900 address read NACK");
-        Check(recv(video_sda, video_scl) == 0x83u, "TW9900 revision on video GPIO bus");
-        stop(video_sda, video_scl);
-        start(video_sda, video_scl);
-        Check(send(video_sda, video_scl, 0x2Au << 1u), "PIC command address NACK");
-        Check(send(video_sda, video_scl, 1u), "PIC command byte NACK");
-        stop(video_sda, video_scl);
-        std::puts("PASS Core TW9900 and PIC respond on video GPIO I2C bus");
     }
     uint32_t Execute(uint32_t segment) {
         auto& guest = engine_.Get<cerfengine::GuestEngine>();
@@ -524,9 +325,20 @@ private:
         Write(base + 0x804u, 2u);
         Check(Read(base + 0x804u) == 2u, "DWC2 soft disconnect");
         Write(base + 0xCu, 0x4000140Du);
+        Write(base + 0x800u, 0x40003u);
         Write(base + 0x10u, 0x3Fu);
         Check(Read(base + 0x10u) == 0x80000000u, "DWC2 reset/flush completion and AHB idle");
-        Check(Read(base + 0xCu) == 0x4000140Du, "DWC2 core reset changed mode configuration");
+        Write(base + 0xCu, 0x140Du);
+        Write(base + 0x800u, 0x40000u);
+        Check(Read(base + 0xCu) == 0x140Du && Read(base + 0x800u) == 0x40000u,
+              "DWC2 USB and device configuration written after a core reset");
+        Check(Read(base + 0x908u) == 0x80u && Read(base + 0xAE8u) == 0x80u &&
+                  Read(base + 0xB08u) == 0x80u && Read(base + 0xCE8u) == 0x80u,
+              "DWC2 endpoint interrupt reset value");
+        Write(base + 0x908u, 0x3Fu);
+        Write(base + 0xB08u, 0x3Fu);
+        Check(Read(base + 0x908u) == 0x80u && Read(base + 0xB08u) == 0x80u,
+              "DWC2 endpoint interrupt TXFE and reserved bit 7 survive a clear");
         Write(base + 0x24u, 256u);
         Write(base + 0x28u, 0x01000100u);
         Check(Read(base + 0x24u) == 256u && Read(base + 0x28u) == 0x01000100u,
@@ -615,32 +427,27 @@ private:
         std::puts("PASS Core state round trip preserves DMA/UART and active USB across a CPU-rate change");
     }
 
-    cerfcore::CerfEmulator& emu_;
     cerfengine::Engine& engine_;
-    cerfengine::MipsCpuState& state_;
-    cerfcore::GuestCycleClock& clock_;
-    cerfcore::PeripheralDispatcher& bus_;
-    cerfcore::EmulatedMemory& ram_;
 };
 
 }
 
 int main(int argc, char** argv) {
-    using namespace cerfcore;
-    Log::SetFile("au1374-core-integration-test.log");
-    Log::SetFlush(true);
-    Log::SetEnabled(Log::MASK_ALL);
-    CerfConfig config;
-    config.device_override = "au1374";
-    config.crash_log_file = "au1374-core-integration-test-crash.log";
-    CerfEmulator emulator(config, argc, argv);
-    emulator.CreateAllServices();
-    const bool passed = emulator.Get<Fatal>().Guard([&] {
-        emulator.ResolveAllSlots();
-        emulator.ReadyAllServices();
-        CoreIntegrationTest(emulator).Run();
-    });
-    Check(passed, "Core integration tests halted");
-        std::puts("PASS twelve Core integration cases");
+    using au1374_core_test::HaltsAfterBoot;
+    constexpr uint32_t dwc2 = 0x14022000u;
+    au1374_core_test::RunCoreTest(argc, argv, "integration",
+                                  [](cerfcore::CerfEmulator& emu) { CoreIntegrationTest(emu).Run(); });
+    Check(HaltsAfterBoot(argc, argv, "integration-dwc2-power-on", "DWC2 reset value at 0x14022800",
+                         [](cerfcore::PeripheralDispatcher& bus) { bus.ReadWord(dwc2 + 0x800u); }),
+          "DWC2 DCFG read before any guest write did not halt");
+    Check(HaltsAfterBoot(argc, argv, "integration-dwc2-core-reset", "DWC2 reset value at 0x1402200C",
+                         [](cerfcore::PeripheralDispatcher& bus) {
+                             bus.WriteWord(dwc2 + 0xCu, 0x140Du);
+                             bus.WriteWord(dwc2 + 0x10u, 1u);
+                             bus.ReadWord(dwc2 + 0xCu);
+                         }),
+          "DWC2 GUSBCFG read after a core reset did not halt");
+    std::puts("PASS DWC2 reset values halt until the guest writes them");
+    std::puts("PASS twelve Core integration cases");
     return 0;
 }
